@@ -1,2 +1,2 @@
 # LaboratorioIV
-Esse repositório tem como objetivo de estudar as principais características de sistemas populares open-source 
+Repositório criado para conter as entregas da matéria de Laboratório de Medição e Experimentação de Software da PUC Minas no primeiro semeste de 2020. 
