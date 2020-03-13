@@ -3,22 +3,23 @@ from json import dump
 from json import loads
 import time
 import csv
+import datetime
 
 # Variaveis globais:
 qtd_dados = 1000
-qtd_page = qtd_dados/50
+qtd_page = qtd_dados/10
 qtd_max_buscas = 20
 
 api_url_base = 'https://api.github.com/graphql'
 
 headers = {
     'Content-Type': 'application/json',
-    'Authorization': 'bearer 498cf698150d134c1553a59efed2bb1497f3e56c',
+    'Authorization': 'bearer 6c36687d3ce57991e214284e239a11a9a6a55eff',
 }
 
 query = """
     query{
-        search(query:"stars:>100", type:REPOSITORY, first:50{AFTER}){
+        search(query:"stars:>100", type:REPOSITORY, first:10{AFTER}){
             pageInfo{
                 hasNextPage
                 endCursor
@@ -40,7 +41,10 @@ query = """
                     } 
                     closed_issues: issues(states:CLOSED){ 
                         totalCount 
-                    } 
+                    }
+                    primaryLanguage{
+                        name
+                    }
                 }
             }
         }
@@ -92,7 +96,6 @@ def initialaze():
     next_query = query.replace("{AFTER}", "")
     json["query"] = next_query
     response = request(json)
-    
     return response
 
 # #
@@ -131,23 +134,45 @@ def save_file(json):
     nodes = json['data']['search']['nodes']
 
     file = open("arquivo.csv", 'w')
-    fieldnames = ["Nome","url","Total de pullRequests","Data de Atualizacao","Total de releases","Total de issues abertas","Total de issues fechadas"]
+    fieldnames = ["Nome","url","Data Criacao","Total de pullRequests","Data de Atualizacao","Total de releases","Linguagem","Total de issues abertas","Total de issues fechadas","Idade","Tempo de Atualizacao", "porcentagem de issues"]
     writer = csv.DictWriter(file, fieldnames=fieldnames)
     writer.writeheader()
 
+
     for node in nodes:
+        data = node['createdAt']
+        data_atual = datetime.datetime.now().date()
+        parametros = (data.split('T')[0]).split('-')
+        date = datetime.datetime(int(parametros[0]), int(parametros[1]), int(parametros[2])).date()
+        idade = int(int(abs((data_atual - date).days))/365)
+
+        data = node['updatedAt']
+        parametros_a = (data.split('T')[0]).split('-')
+        date = datetime.datetime(int(parametros_a[0]), int(parametros_a[1]), int(parametros_a[2])).date()
+        tempo_atualizacao = int(int(abs((data_atual - date).days)))
+        
+        if int(node['opened_issues']['totalCount']) > 0 :
+            issuesP = (int(node['closed_issues']['totalCount'])*100)/int(node['opened_issues']['totalCount'])
+
+        linguagem = 'Não informado'
+        if node['primaryLanguage'] is not None: 
+            linguagem = str(node['primaryLanguage']['name'])
+        
         writer.writerow({"Nome": node['nameWithOwner'],
                          "url":node['url'],
+                         "Data Criacao":date,
                          "Total de pullRequests":node['pullRequests']['totalCount'],
                          "Data de Atualizacao":node['updatedAt'],
+                         "Linguagem":linguagem,
                          "Total de releases":node['releases']['totalCount'],
-                         "Total de issues abertas":node['opened_issues']['totalCount'],
-                         "Total de issues fechadas":node['closed_issues']['totalCount']
+                         "Total de issues abertas":""+str(node['opened_issues']['totalCount']),
+                         "Total de issues fechadas":""+str(node['closed_issues']['totalCount']),
+                         "Idade": idade,
+                         "Tempo de Atualizacao": tempo_atualizacao,
+                         "porcentagem de issues": issuesP
                         })
     file.close()
 
 result = start()
 save_file(result)
-
-
 
